@@ -11,13 +11,14 @@ use serde::Deserialize;
 
 const LN_URL: &str = "lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhhg6tdv438yctwvscrxhnh4nf";
 
-
 #[tokio::main]
 async fn main() {
     let recipient = LightningRecipient::from_str(LN_URL).unwrap();
     recipient.decode_url();
 
-    let invoice = Invoice::with_amount("timebrand03@walletofsatoshi.com", 1_000).await.unwrap();
+    let invoice = Invoice::with_amount("timebrand03@walletofsatoshi.com", 1_000)
+        .await
+        .unwrap();
     invoice.print_qr_code();
     invoice.save_qr_code();
 }
@@ -73,8 +74,14 @@ fn lr_from_str() {
         LightningRecipient::from_str("lnurlabcdefgh")
     );
 
-    assert_eq!(Err(ParseRecipientError::TooManyAtSigns), LightningRecipient::from_str("hello@world@com"));
-    assert_eq!(Err(ParseRecipientError::NoRecipientFound), LightningRecipient::from_str("helloworld.com"));
+    assert_eq!(
+        Err(ParseRecipientError::TooManyAtSigns),
+        LightningRecipient::from_str("hello@world@com")
+    );
+    assert_eq!(
+        Err(ParseRecipientError::NoRecipientFound),
+        LightningRecipient::from_str("helloworld.com")
+    );
 }
 
 impl LightningRecipient {
@@ -119,7 +126,7 @@ struct CallbackResponse {
 #[derive(Debug)]
 enum Error {
     Reqwest(reqwest::Error),
-    ParseRecipient(ParseRecipientError)
+    ParseRecipient(ParseRecipientError),
 }
 
 impl From<reqwest::Error> for Error {
@@ -137,7 +144,7 @@ impl From<ParseRecipientError> for Error {
 #[derive(Deserialize)]
 struct Invoice {
     #[serde(rename = "pr")]
-    data: String
+    data: String,
 }
 
 impl Invoice {
@@ -152,8 +159,7 @@ impl Invoice {
         }
 
         let url = format!("{}?amount={amount}", wallet_response.callback_url);
-        let callback_response: CallbackResponse =
-            reqwest::get(url).await?.json().await?;
+        let callback_response: CallbackResponse = reqwest::get(url).await?.json().await?;
         Ok(callback_response.invoice)
     }
 
@@ -194,22 +200,15 @@ fn _create_qr_invoice() {
     let private_key =
         SecretKey::from_str("e126f68f7eafcc8b74f54d269fe206be715000f94dac067d1c04a8ca3b2db734")
             .unwrap();
-    //e126f68f7eafcc8b74f54d269fe206be715000f94dac067d1c04a8ca3b2db734
-    //4b79476f6a58644a7a784a46517152686e3870504264745a3673325143326b61343456534171364763747967717773347a544872
     println!("{}", private_key.display_secret());
     let pub_key =
         PublicKey::from_str("03e7156ae33b0a208d0744199163177e909e80176e55d97a2f221ede0f934dd9ad")
             .unwrap();
 
-    // let payment_hash = sha256::Hash::from_slice(&[0; 32][..]).unwrap();
-    // let payment_secret = PaymentSecret([42u8; 32]);
-
     let invoice = InvoiceBuilder::new(Currency::Bitcoin)
         .description("Coins pls!".into())
         .amount_milli_satoshis(100)
         .payee_pub_key(pub_key)
-        // .payment_hash(payment_hash)
-        // .payment_secret(payment_secret)
         .current_timestamp()
         .min_final_cltv_expiry_delta(144)
         .build_raw()
@@ -219,7 +218,6 @@ fn _create_qr_invoice() {
                 Secp256k1::new().sign_ecdsa_recoverable(hash, &private_key),
             )
         })
-        // .build_signed(|hash| Secp256k1::new().sign_ecdsa_recoverable(hash, &private_key))
         .unwrap();
 
     println!("{invoice}");
