@@ -2,9 +2,12 @@ use std::convert::Infallible;
 use std::str::FromStr;
 
 use bech32::FromBase32;
+use image::Luma;
 use lightning_invoice::{Currency, InvoiceBuilder};
+use qrcode::render::svg;
+use qrcode::{render::unicode, QrCode};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
-use serde::{Deserialize};
+use serde::Deserialize;
 
 const LN_URL: &str = "lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhhg6tdv438yctwvscrxhnh4nf";
 
@@ -14,7 +17,7 @@ enum LightningRecipient {
 }
 
 impl LightningRecipient {
-    fn decode(&self) -> String {
+    fn decode_url(&self) -> String {
         match self {
             LightningRecipient::LnUrl(encoded) => {
                 let (hrp, data, _variant) = bech32::decode(&encoded).unwrap();
@@ -59,7 +62,27 @@ struct CallbackResponse {
 
 impl CallbackResponse {
     fn print_qr_code(&self) {
-        qr2term::print_qr(self.invoice.clone()).unwrap();
+        let code = QrCode::new(&self.invoice).unwrap();
+        let image = code
+            .render::<unicode::Dense1x2>()
+            .dark_color(unicode::Dense1x2::Light)
+            .light_color(unicode::Dense1x2::Dark)
+            .build();
+        println!("{image}");
+    }
+
+    fn save_qr_code(&self) {
+        let code = QrCode::new(&self.invoice).unwrap();
+        let image = code.render::<Luma<u8>>().build();
+        image.save("/Users/thomas/dev/astron/qrcode.png").unwrap();
+
+        let image = code
+            .render()
+            .min_dimensions(200, 200)
+            .dark_color(svg::Color("#000000"))
+            .light_color(svg::Color("#ffffff"))
+            .build();
+        std::fs::write("/Users/thomas/dev/astron/qrcode.svg", image).unwrap();
     }
 }
 
@@ -67,14 +90,14 @@ impl CallbackResponse {
 async fn main() {
     // todo: impl FromStr for LightningRecipient
     let recipient = LightningRecipient::LnUrl(LN_URL.to_string());
-    recipient.decode();
+    recipient.decode_url();
 
     let recipient = LightningRecipient::LightningAddress {
         domain: "walletofsatoshi.com".to_string(),
         username: "timebrand03".to_string(),
     };
 
-    let url = recipient.decode();
+    let url = recipient.decode_url();
     let wallet_response: WalletResponse = reqwest::get(url).await.unwrap().json().await.unwrap();
 
     let amount_sats = 1_000;
@@ -86,7 +109,11 @@ async fn main() {
     let url = format!("{}?amount={amount}", wallet_response.callback_url);
     let callback_response: CallbackResponse =
         reqwest::get(url).await.unwrap().json().await.unwrap();
+
+    println!("{}", callback_response.invoice);
+
     callback_response.print_qr_code();
+    callback_response.save_qr_code();
 }
 
 fn _create_qr_invoice() {
