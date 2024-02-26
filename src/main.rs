@@ -11,23 +11,88 @@ use serde::Deserialize;
 
 const LN_URL: &str = "lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhhg6tdv438yctwvscrxhnh4nf";
 
+
+#[tokio::main]
+async fn main() {
+    let recipient = LightningRecipient::from_str(LN_URL).unwrap();
+    recipient.decode_url();
+
+    let recipient = LightningRecipient::from_str("timebrand03@walletofsatoshi.com").unwrap();
+    let url = recipient.decode_url();
+    let wallet_response: WalletResponse = reqwest::get(url).await.unwrap().json().await.unwrap();
+
+    let amount_sats = 1_000;
+    let amount = amount_sats * 1000;
+    if amount < wallet_response.min_sendable || amount > wallet_response.max_sendable {
+        panic!("Amount out of bonds");
+    }
+
+    let url = format!("{}?amount={amount}", wallet_response.callback_url);
+    let callback_response: CallbackResponse =
+        reqwest::get(url).await.unwrap().json().await.unwrap();
+
+    println!("{}", callback_response.invoice);
+
+    callback_response.print_qr_code();
+    callback_response.save_qr_code();
+}
+
+#[derive(Debug, Eq, PartialEq)]
 enum LightningRecipient {
     LightningAddress { domain: String, username: String },
     LnUrl(String),
+}
+
+impl FromStr for LightningRecipient {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("lnurl") {
+            return Ok(Self::LnUrl(s.to_string()));
+        }
+
+        if s.contains('@') {
+            let mut parts = s.split('@');
+            if parts.clone().count() != 2 {
+                return Err(());
+            }
+
+            return Ok(Self::LightningAddress {
+                username: parts.next().unwrap().to_string(),
+                domain: parts.next().unwrap().to_string(),
+            });
+        }
+
+        Err(())
+    }
+}
+
+#[test]
+fn lr_from_str() {
+    assert_eq!(
+        Ok(LightningRecipient::LightningAddress {
+            domain: "world.com".to_string(),
+            username: "hello".to_string()
+        }),
+        LightningRecipient::from_str("hello@world.com")
+    );
+
+    assert_eq!(
+        Ok(LightningRecipient::LnUrl("lnurlabcdefgh".to_string())),
+        LightningRecipient::from_str("lnurlabcdefgh")
+    );
+
+    assert_eq!(Err(()), LightningRecipient::from_str("hello@world@com"));
+    assert_eq!(Err(()), LightningRecipient::from_str("helloworld.com"));
 }
 
 impl LightningRecipient {
     fn decode_url(&self) -> String {
         match self {
             LightningRecipient::LnUrl(encoded) => {
-                let (hrp, data, _variant) = bech32::decode(&encoded).unwrap();
-                println!("hrp {hrp}");
-                assert_eq!(hrp, "lnurl");
-
+                let (_hrp, data, _variant) = bech32::decode(&encoded).unwrap();
                 let decoded = Vec::<u8>::from_base32(&data).unwrap();
-                println!("decoded {decoded:?}");
-                println!("data {data:?}");
-                String::new()
+                String::from_utf8(decoded).unwrap()
             }
             LightningRecipient::LightningAddress { domain, username } => {
                 let url = format!("https://{domain}/.well-known/lnurlp/{username}");
@@ -86,36 +151,6 @@ impl CallbackResponse {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    // todo: impl FromStr for LightningRecipient
-    let recipient = LightningRecipient::LnUrl(LN_URL.to_string());
-    recipient.decode_url();
-
-    let recipient = LightningRecipient::LightningAddress {
-        domain: "walletofsatoshi.com".to_string(),
-        username: "timebrand03".to_string(),
-    };
-
-    let url = recipient.decode_url();
-    let wallet_response: WalletResponse = reqwest::get(url).await.unwrap().json().await.unwrap();
-
-    let amount_sats = 1_000;
-    let amount = amount_sats * 1000;
-    if amount < wallet_response.min_sendable || amount > wallet_response.max_sendable {
-        panic!("Amount out of bonds");
-    }
-
-    let url = format!("{}?amount={amount}", wallet_response.callback_url);
-    let callback_response: CallbackResponse =
-        reqwest::get(url).await.unwrap().json().await.unwrap();
-
-    println!("{}", callback_response.invoice);
-
-    callback_response.print_qr_code();
-    callback_response.save_qr_code();
-}
-
 fn _create_qr_invoice() {
     let _private_key = SecretKey::from_slice(
         &[
@@ -157,8 +192,6 @@ fn _create_qr_invoice() {
         .unwrap();
 
     println!("{invoice}");
-
-    qr2term::print_qr(invoice.to_string()).unwrap();
 
     assert!(invoice.to_string().starts_with("lnbc1"));
 }
