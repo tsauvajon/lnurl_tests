@@ -1,6 +1,6 @@
 <script>
-	import Store from './Store.svelte';
+	import Invoice from './Invoice.svelte';
 </script>
 
-<h1>Hi</h1>
-<Store />
+<h1>Lightning network LNURL demos (BOLT11)</h1>
+<Invoice />
