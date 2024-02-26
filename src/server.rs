@@ -1,17 +1,28 @@
 use axum::{
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 
 use crate::invoice::Invoice;
 
 pub(crate) fn routes() -> Router {
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(Any)
+        .allow_origin(Any);
+
     Router::new()
         .route("/", get(root))
         .route("/invoice", post(create_invoice))
+        .layer(TraceLayer::new_for_http())
+        .layer(cors)
 }
 
 // TODO statically serve the frontend
@@ -41,12 +52,20 @@ struct CreateInvoice {
 #[derive(Serialize)]
 struct CreatedInvoice {
     data: String,
+    qr_code: Option<String>,
 }
 
 impl From<Invoice> for CreatedInvoice {
     fn from(invoice: Invoice) -> Self {
         CreatedInvoice {
             data: invoice.data(),
+            qr_code: invoice
+                .qr_code()
+                .map_err(|err| {
+                    println!("{err}");
+                    err
+                })
+                .ok(),
         }
     }
 }

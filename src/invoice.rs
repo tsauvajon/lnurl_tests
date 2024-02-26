@@ -4,7 +4,8 @@ use image::Luma;
 use lightning_invoice::{Currency, InvoiceBuilder};
 use qrcode::{
     render::{svg, unicode},
-    QrCode,
+    types::QrError,
+    EcLevel, QrCode, Version,
 };
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use serde::Deserialize;
@@ -81,7 +82,7 @@ impl Invoice {
         Ok(callback_response.invoice)
     }
 
-    pub(crate) fn print_qr_code(&self) {
+    pub(crate) fn _print_qr_code(&self) {
         let code = QrCode::new(&self.data).unwrap();
         let image = code
             .render::<unicode::Dense1x2>()
@@ -91,7 +92,7 @@ impl Invoice {
         println!("{image}");
     }
 
-    pub(crate) fn save_qr_code(&self) {
+    pub(crate) fn _save_qr_code(&self) {
         let code = QrCode::new(&self.data).unwrap();
         let image = code.render::<Luma<u8>>().build();
         image.save("/Users/thomas/dev/astron/qrcode.png").unwrap();
@@ -105,8 +106,32 @@ impl Invoice {
         std::fs::write("/Users/thomas/dev/astron/qrcode.svg", image).unwrap();
     }
 
-    pub(crate) fn data(self) -> String {
-        self.data
+    pub(crate) fn qr_code(&self) -> Result<String, QrError> {
+        // Try to fit the data until we get a match
+
+        for size in 13..40 {
+            match QrCode::with_version(&self.data, Version::Normal(size), EcLevel::M) {
+                Ok(qr_code) => {
+                    return Ok(qr_code
+                        .render()
+                        .quiet_zone(true)
+                        .dark_color(svg::Color("#2b3252")) // 16ACEA
+                        .light_color(svg::Color("#ef5455")) // FAD744
+                        .build());
+                }
+                Err(QrError::DataTooLong) => {
+                    println!("Too much data for size {size}");
+                    continue;
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        Err(QrError::DataTooLong)
+    }
+
+    pub(crate) fn data(&self) -> String {
+        self.data.clone()
     }
 }
 
