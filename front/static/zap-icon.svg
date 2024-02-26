@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 512 512" style="enable-background:new 0 0 512 512;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill-rule:evenodd;clip-rule:evenodd;}
+</style>
+<g>
+	<path class="st0" d="M360,2.2c6.4,3.7,9.5,11.4,7.2,18.6L309.7,208H416c8.8,0,16,7.1,16,16c0,4.1-1.5,8-4.4,11l-256,272
+		c-6,6.4-16.2,6.7-22.6,0.7c-4.5-4.2-6.1-10.5-4.3-16.4L202.3,304H96c-8.8,0-16-7.2-16-16c0-4.1,1.5-8,4.4-11l256-272
+		C345.4-0.4,353.6-1.6,360,2.2L360,2.2z M133,272h91c8.8,0,16,7.1,16,16l-0.7,4.7l-43.8,142.2L378.9,240H288c-8.8,0-16-7.2-16-16
+		l0.7-4.7l43.8-142.2L133,272z"/>
+</g>
+</svg>
