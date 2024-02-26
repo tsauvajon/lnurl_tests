@@ -1,14 +1,26 @@
 <script lang="ts">
-	let qty = 1;
-	const unit_price = 200_000;
 	let qr_code: String | null = null;
 	let invoice: String | null = null;
 	let error: String | null = null;
+
+	let qty = 1;
+	const unit_price = 200_000;
 	$: total = unit_price * qty;
+	
+	let zap_amount = 2000;
+	$: usd_zap = (zap_amount / 1930).toFixed(2);
 
 	async function buy() {
+		get_invoice(total)
+	}
+
+	async function zap() {
+		get_invoice(zap_amount)
+	}
+
+	async function get_invoice(sats) {
+		error = null;
 		try {
-			const sats = total;
 			const res = await fetch('http://127.0.0.1:3987/invoice', {
 				method: 'POST',
 				headers: {
@@ -27,21 +39,40 @@
 		} catch (e: any) {
 			error = e;
 		}
+
 	}
 
 	// TODO: animate QR Code https://svelte.dev/tutorial/bind-this
 </script>
 
-<p>
-	<!-- <label> -->
-	Price: {unit_price}<br />
-	Quantity: {qty}
-	<input type="range" bind:value={qty} min="0" max="10" /><br />
-	Total: {total}<br />
-	<!-- </label> -->
-	<br />
-	<button on:click={buy}> Buy </button>
-</p>
+<table>
+	<tr>
+	<th>Shop demo</th>
+	<th>Zap demo</th>
+	</tr>
+
+	<tr>
+	<td>
+	<p>
+		Price: {unit_price}<br />
+		Quantity: {qty}
+		<input type="range" bind:value={qty} min="0" max="10" /><br />
+		Total: {total}<br />
+		<button on:click={buy}> Buy</button>
+	</p>
+	</td>
+
+	<td>
+	<p>
+		Zap: {zap_amount}
+		<input type="range" bind:value={zap_amount} min="20" max="40000" /><br />
+		($ {usd_zap})
+		<br />
+		<button on:click={zap}> Zap</button>
+	</p>
+	</td>
+	</tr>
+</table>
 
 {#if error}
 	<p>Error: {error}</p>

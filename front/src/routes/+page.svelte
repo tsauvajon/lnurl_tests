@@ -2,5 +2,5 @@
 	import Store from './Store.svelte';
 </script>
 
-<h1>Welcome</h1>
+<h1>Hi</h1>
 <Store />
