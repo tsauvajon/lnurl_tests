@@ -78,6 +78,7 @@
 	<p>Error: {error}</p>
 {:else if qr_code}
 	<p>QR Code: {@html qr_code}</p>
+	<p>Raw Invoice: {invoice}</p>
 {:else if invoice}
 	<p>Invoice: {invoice}</p>
 {/if}
