@@ -1,5 +1,6 @@
 <script>
 	import Invoice from './Invoice.svelte';
+	import Card from './Card.svelte';
 	import _ from './Button.svelte';
 </script>
 

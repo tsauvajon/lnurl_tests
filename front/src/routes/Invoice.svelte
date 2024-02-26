@@ -1,5 +1,6 @@
 <script lang="ts">
-	import ZapIcon from './Zap.svelte';
+	import ZapIcon from './ZapIcon.svelte';
+	import Card from './Card.svelte';
 
 	let qr_code: String | null = null;
 	let invoice: String | null = null;
@@ -101,11 +102,16 @@
 {#if error}
 	<p>Error: {error}</p>
 {:else if qr_code}
-	<p class="qr_code">QR Code: {@html qr_code}</p>
+	<p class="qr_code">{@html qr_code}</p>
+	<br />
 	<p>
 		{#if invoice}
-			Raw Invoice: {invoice}
-			<button on:click={() => navigator.clipboard.writeText(invoice)}>Copy</button>
+			<Card
+				header="Raw invoice"
+				content={invoice}
+				button="Copy to clipboard"
+				on:buttonClicked={() => navigator.clipboard.writeText(invoice)}
+			/>
 		{/if}
 	</p>
 {:else if invoice}
