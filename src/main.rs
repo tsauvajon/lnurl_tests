@@ -17,24 +17,9 @@ async fn main() {
     let recipient = LightningRecipient::from_str(LN_URL).unwrap();
     recipient.decode_url();
 
-    let recipient = LightningRecipient::from_str("timebrand03@walletofsatoshi.com").unwrap();
-    let url = recipient.decode_url();
-    let wallet_response: WalletResponse = reqwest::get(url).await.unwrap().json().await.unwrap();
-
-    let amount_sats = 1_000;
-    let amount = amount_sats * 1000;
-    if amount < wallet_response.min_sendable || amount > wallet_response.max_sendable {
-        panic!("Amount out of bonds");
-    }
-
-    let url = format!("{}?amount={amount}", wallet_response.callback_url);
-    let callback_response: CallbackResponse =
-        reqwest::get(url).await.unwrap().json().await.unwrap();
-
-    println!("{}", callback_response.invoice);
-
-    callback_response.print_qr_code();
-    callback_response.save_qr_code();
+    let invoice = Invoice::with_amount("timebrand03@walletofsatoshi.com", 1_000).await.unwrap();
+    invoice.print_qr_code();
+    invoice.save_qr_code();
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -43,8 +28,14 @@ enum LightningRecipient {
     LnUrl(String),
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum ParseRecipientError {
+    TooManyAtSigns,
+    NoRecipientFound,
+}
+
 impl FromStr for LightningRecipient {
-    type Err = ();
+    type Err = ParseRecipientError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with("lnurl") {
@@ -54,7 +45,7 @@ impl FromStr for LightningRecipient {
         if s.contains('@') {
             let mut parts = s.split('@');
             if parts.clone().count() != 2 {
-                return Err(());
+                return Err(ParseRecipientError::TooManyAtSigns);
             }
 
             return Ok(Self::LightningAddress {
@@ -63,7 +54,7 @@ impl FromStr for LightningRecipient {
             });
         }
 
-        Err(())
+        Err(ParseRecipientError::NoRecipientFound)
     }
 }
 
@@ -82,15 +73,15 @@ fn lr_from_str() {
         LightningRecipient::from_str("lnurlabcdefgh")
     );
 
-    assert_eq!(Err(()), LightningRecipient::from_str("hello@world@com"));
-    assert_eq!(Err(()), LightningRecipient::from_str("helloworld.com"));
+    assert_eq!(Err(ParseRecipientError::TooManyAtSigns), LightningRecipient::from_str("hello@world@com"));
+    assert_eq!(Err(ParseRecipientError::NoRecipientFound), LightningRecipient::from_str("helloworld.com"));
 }
 
 impl LightningRecipient {
     fn decode_url(&self) -> String {
         match self {
             LightningRecipient::LnUrl(encoded) => {
-                let (_hrp, data, _variant) = bech32::decode(&encoded).unwrap();
+                let (_hrp, data, _variant) = bech32::decode(encoded).unwrap();
                 let decoded = Vec::<u8>::from_base32(&data).unwrap();
                 String::from_utf8(decoded).unwrap()
             }
@@ -108,8 +99,8 @@ impl LightningRecipient {
 struct WalletResponse {
     #[serde(rename = "callback")]
     pub callback_url: String,
-    pub max_sendable: i64,
-    pub min_sendable: i64,
+    pub max_sendable: u64,
+    pub min_sendable: u64,
     // pub metadata: String,
     // pub comment_allowed: i64,
     // pub tag: String,
@@ -119,15 +110,55 @@ struct WalletResponse {
 
 #[derive(Deserialize)]
 struct CallbackResponse {
-    #[serde(rename = "pr")]
-    invoice: String,
+    #[serde(flatten)]
+    invoice: Invoice,
     #[serde(rename = "routes")]
     _routes: Vec<()>,
 }
 
-impl CallbackResponse {
+#[derive(Debug)]
+enum Error {
+    Reqwest(reqwest::Error),
+    ParseRecipient(ParseRecipientError)
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::Reqwest(err)
+    }
+}
+
+impl From<ParseRecipientError> for Error {
+    fn from(err: ParseRecipientError) -> Self {
+        Error::ParseRecipient(err)
+    }
+}
+
+#[derive(Deserialize)]
+struct Invoice {
+    #[serde(rename = "pr")]
+    data: String
+}
+
+impl Invoice {
+    async fn with_amount(recipient: &str, sats: u64) -> Result<Self, Error> {
+        let recipient = LightningRecipient::from_str(recipient)?;
+        let url = recipient.decode_url();
+        let wallet_response: WalletResponse = reqwest::get(url).await?.json().await?;
+
+        let amount = sats * 1000;
+        if amount < wallet_response.min_sendable || amount > wallet_response.max_sendable {
+            panic!("Amount out of bonds");
+        }
+
+        let url = format!("{}?amount={amount}", wallet_response.callback_url);
+        let callback_response: CallbackResponse =
+            reqwest::get(url).await?.json().await?;
+        Ok(callback_response.invoice)
+    }
+
     fn print_qr_code(&self) {
-        let code = QrCode::new(&self.invoice).unwrap();
+        let code = QrCode::new(&self.data).unwrap();
         let image = code
             .render::<unicode::Dense1x2>()
             .dark_color(unicode::Dense1x2::Light)
@@ -137,7 +168,7 @@ impl CallbackResponse {
     }
 
     fn save_qr_code(&self) {
-        let code = QrCode::new(&self.invoice).unwrap();
+        let code = QrCode::new(&self.data).unwrap();
         let image = code.render::<Luma<u8>>().build();
         image.save("/Users/thomas/dev/astron/qrcode.png").unwrap();
 
