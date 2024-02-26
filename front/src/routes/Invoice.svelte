@@ -55,30 +55,44 @@
 	<tr>
 		<td style="background: grey">
 			<p>
-				Price: {unit_price} sats<br />
-				Quantity: {qty} item
-				<input type="range" bind:value={qty} min="0" max="10" /><br />
-				Total: {total} sats<br />
-				<button on:click={buy}>Buy</button>
+				<br />
+				<span>
+					Price: {unit_price} sats
+				</span>
+				<span>
+					Quantity: {qty} item
+					<input type="range" bind:value={qty} min="0" max="10" />
+				</span>
+				<span>
+					Total: {total} sats
+				</span>
+				<br /><br />
+				<span>
+					<button on:click={buy}>Buy</button>
+				</span>
 			</p>
 		</td>
 
 		<td style="background: lightgrey">
 			<p>
 				<span>
-					<button on:click={() => (zap_amount = 50)}>50</button>
-					<button on:click={() => (zap_amount = 1000)}>1k</button>
-					<button on:click={() => (zap_amount = 5000)}>5k</button>
+					<button on:click={() => (zap_amount = 50)}>50</button>&nbsp;
+					<button on:click={() => (zap_amount = 1000)}>1k</button>&nbsp;
+					<button on:click={() => (zap_amount = 5000)}>5k</button>&nbsp;
 					<button on:click={() => (zap_amount = 100_000)}>100k</button>
 				</span>
 				<br />
 				<!-- TODO: modal? -->
-				Custom:
-				<input type="number" bind:value={zap_amount} min="20" max="40000" /><br />
-				<input type="range" bind:value={zap_amount} min="20" max="40000" /><br />
-				($ {zap_amount_usd})
+				<span>
+					Custom:
+					<input type="number" bind:value={zap_amount} min="20" max="40000" /><br />
+					<input type="range" bind:value={zap_amount} min="20" max="40000" /><br />
+					($ {zap_amount_usd})
+				</span>
 				<br />
-				<button on:click={zap}><ZapIcon />Zap {zap_amount} sats!</button>
+				<span>
+					<button class="pulse" on:click={zap}><ZapIcon />Zap {zap_amount} sats!</button>
+				</span>
 			</p>
 		</td>
 	</tr>
@@ -109,6 +123,19 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.pulse:hover {
+		animation: pulse-animation 3s infinite;
+	}
+
+	@keyframes pulse-animation {
+		0% {
+			box-shadow: 0 0 0 0px #3c4fe0;
+		}
+		100% {
+			box-shadow: 0 0 0 20px rgba(0, 0, 0, 0);
+		}
 	}
 
 	:global(.qr_code svg rect) {
